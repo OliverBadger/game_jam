@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c101bbc53410a5459eaaab6024e9f9d, type: 3}
+  m_Name: Turtle
+  m_EditorClassIdentifier: Assembly-CSharp::AnimalData
+  animalName: Turtle
+  baseDropRate: 300
+  headAttack: 4
+  bodyHealth: 40
+  legsSpeed: 2
+  archetypeDescription: 
+  headSprite: {fileID: 5147101505269811550, guid: d5481c77a9be6c34587e28080dc07d8e, type: 3}
+  bodySprite: {fileID: -9037955155370293050, guid: bceb3e8b992d3fc4faaba178df05603c, type: 3}
+  legsSprite: {fileID: -3425079661185446809, guid: 7b7352fda8b5c3d49ab12095959582de, type: 3}
