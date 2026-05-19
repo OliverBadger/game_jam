@@ -22,4 +22,10 @@ public class AnimalData : ScriptableObject
     public Sprite headSprite; 
     public Sprite bodySprite;
     public Sprite legsSprite;
+    
+    [Header("Visual Offsets (local)")]
+    [Tooltip("Local position offset for this part when attached to a fighter. Useful for pixel-perfect 16-bit placement.")]
+    public Vector3 headOffset;
+    public Vector3 bodyOffset;
+    public Vector3 legsOffset;
 }
