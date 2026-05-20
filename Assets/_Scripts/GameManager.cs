@@ -39,6 +39,22 @@ public class GameManager : MonoBehaviour
     // e.g. "Turtle" -> -10f reduces turtle appearance chance by 10 percentage points.
     private readonly Dictionary<string, float> dropRateModifiers = new();
 
+    // Names of ShopItem assets the player has already bought this tournament.
+    // Used to enforce ShopItem.oneShot. Cleared on ResetTournament().
+    private readonly HashSet<string> purchasedItems = new();
+
+    // Optional companion component on the same GameObject. Found lazily so
+    // GameManager still works in isolation when no upgrades are present.
+    private UpgradeRegistry _upgrades;
+    public UpgradeRegistry Upgrades
+    {
+        get
+        {
+            if (_upgrades == null) _upgrades = GetComponent<UpgradeRegistry>();
+            return _upgrades;
+        }
+    }
+
     // ─── Public Read-Only Properties ─────────────────────────────────────────
     public AnimalData PlayerHead  => playerHead;
     public AnimalData PlayerBody  => playerBody;
@@ -126,6 +142,26 @@ public class GameManager : MonoBehaviour
         goldBonusThisFight = goldBonus;
     }
 
+    // ─── Effective Budgets (fold in upgrade bonuses) ─────────────────────────
+    // The SlotMachineManager calls these instead of the raw fields so that
+    // every owned ActionBudgetBoost / SpinBudgetBoost upgrade tier is honored.
+
+    public int GetEffectiveSpinsThisFight()
+        => spinsThisFight   + (Upgrades != null ? Upgrades.GetTotalSpinBonus()   : 0);
+
+    public int GetEffectiveActionsThisFight()
+        => actionsThisFight + (Upgrades != null ? Upgrades.GetTotalActionBonus() : 0);
+
+    /// <summary>
+    /// Applies GoldRewardBoost upgrades to a base gold amount.
+    /// FightManager passes its win reward through this before crediting.
+    /// </summary>
+    public int ApplyGoldRewardMultiplier(int baseAmount)
+    {
+        float mult = Upgrades != null ? Upgrades.GetGoldRewardMultiplier() : 1f;
+        return Mathf.RoundToInt(baseAmount * mult);
+    }
+
     // ─── Shop Drop Rate Modifiers ─────────────────────────────────────────────
 
     /// <summary>
@@ -136,6 +172,29 @@ public class GameManager : MonoBehaviour
     {
         dropRateModifiers[animalName] = modifier;
         Debug.Log($"[GameManager] Drop rate modifier: {animalName} {(modifier >= 0 ? "+" : "")}{modifier}%");
+    }
+
+    /// <summary>
+    /// Stackable variant of SetDropRateModifier — adds delta to the existing
+    /// modifier instead of replacing it. The shop uses this so repeat purchases
+    /// of the same upgrade compound.
+    /// </summary>
+    public void AdjustDropRateModifier(string animalName, float delta)
+    {
+        if (string.IsNullOrEmpty(animalName)) return;
+        float current = dropRateModifiers.TryGetValue(animalName, out float m) ? m : 0f;
+        dropRateModifiers[animalName] = current + delta;
+        Debug.Log($"[GameManager] Drop rate stack: {animalName} now {(current + delta):+0.#;-0.#}%");
+    }
+
+    // ─── Shop One-Shot Purchase Tracking ─────────────────────────────────────
+
+    public bool HasPurchased(string itemName)
+        => !string.IsNullOrEmpty(itemName) && purchasedItems.Contains(itemName);
+
+    public void MarkPurchased(string itemName)
+    {
+        if (!string.IsNullOrEmpty(itemName)) purchasedItems.Add(itemName);
     }
 
     /// <summary>
@@ -171,6 +230,11 @@ public class GameManager : MonoBehaviour
         actionsThisFight   = 5;
         spinsThisFight     = 3;
         goldBonusThisFight = 20;
+        // Wipe shop state — fresh tournament means fresh drop rates and a
+        // shop catalog where one-shot items can be bought again.
+        dropRateModifiers.Clear();
+        purchasedItems.Clear();
+        Upgrades?.ResetForNewTournament();
         Debug.Log("[GameManager] Tournament reset. Gold preserved.");
     }
 }

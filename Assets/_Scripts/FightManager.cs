@@ -131,7 +131,12 @@ public class FightManager : MonoBehaviour
         if (winner == playerFighter)
         {
             int bonusGold = GameManager.Instance?.GoldBonusThisFight ?? 0;
-            int totalGold = goldRewardOnWin + bonusGold;
+            int rawGold   = goldRewardOnWin + bonusGold;
+            // Run the payout through the upgrade-aware multiplier (no-op if
+            // GameManager is missing or no GoldRewardBoost upgrades are owned).
+            int totalGold = GameManager.Instance != null
+                ? GameManager.Instance.ApplyGoldRewardMultiplier(rawGold)
+                : rawGold;
             GameManager.Instance?.AddGold(totalGold);
             GameManager.Instance?.AdvanceRound();
             Debug.Log($"=== PLAYER WINS! +{totalGold} gold ===");
