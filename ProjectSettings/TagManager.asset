@@ -4,15 +4,15 @@
 TagManager:
   serializedVersion: 3
   tags:
-  - floor
+  - Opponent
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Fighter
   - Water
   - UI
-  - 
+  - Ground
   - 
   - 
   - 
