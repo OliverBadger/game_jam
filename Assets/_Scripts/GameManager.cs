@@ -147,4 +147,25 @@ public class GameManager : MonoBehaviour
         float modifier = dropRateModifiers.TryGetValue(animal.animalName, out float m) ? m : 0f;
         return Mathf.Max(0f, animal.baseDropRate + modifier);
     }
+
+    // ─── Tournament Reset ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by FightManager when the player loses or ties.
+    /// Resets the round counter and clears the player's parts so they must
+    /// spin the slot machine again. Gold is intentionally preserved —
+    /// the player should keep their spending power for the shop.
+    /// </summary>
+    public void ResetTournament()
+    {
+        currentRound = 1;
+        playerHead   = null;
+        playerBody   = null;
+        playerLegs   = null;
+        // Reset the fight budget to the default "standard" option.
+        actionsThisFight   = 5;
+        spinsThisFight     = 3;
+        goldBonusThisFight = 20;
+        Debug.Log("[GameManager] Tournament reset. Gold preserved.");
+    }
 }

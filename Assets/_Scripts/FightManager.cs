@@ -1,32 +1,38 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Orchestrates a fight between the player fighter and a generated opponent.
-///
-/// Execution order -10 ensures this Start() fires before BoxBattler (order 0),
-/// so parts are assigned before BoxBattler reads them via the OnPartsChanged event.
+/// Execution order -10 ensures Start() fires before BoxBattler (order 0),
+/// so parts are assigned via SetParts() before BoxBattler reads them.
 /// </summary>
 [DefaultExecutionOrder(-10)]
 public class FightManager : MonoBehaviour
 {
-    // ── Scene References ─────────────────────────────────────────────────────
-    // Drag both fighter GameObjects into these fields in the Inspector.
-    // If either is left empty, the script falls back to finding them by tag
-    // ("Player" for the player fighter, "Opponent" for the AI fighter).
-    [SerializeField] private BoxBattler playerFighter;
-    [SerializeField] private BoxBattler opponentFighter;
+    // Scene References — drag fighters in here, or tag them "Player"/"Opponent".
+    [SerializeField] private BoxBattler        playerFighter;
+    [SerializeField] private BoxBattler        opponentFighter;
     [SerializeField] private OpponentGenerator opponentGenerator;
 
-    // ── Rewards ──────────────────────────────────────────────────────────────
-    [SerializeField] private int   goldRewardOnWin = 50;
-    [SerializeField] private string nextSceneName  = "SlotMachine";
+    // Rewards & Navigation
+    [SerializeField] private int    goldRewardOnWin   = 50;
+    // Scene to load on WIN (next round / slot machine).
+    [SerializeField] private string nextSceneName     = "SlotMachine";
+    // Scene to load on LOSS (restart loop or game-over screen).
+    [SerializeField] private string lossSceneName     = "SlotMachine";
+    // Scene to load when the FINAL round is beaten.
+    [SerializeField] private string championSceneName = "Champion";
+    // Pause (seconds) before loading the next scene so results are visible.
+    [SerializeField] private float  resultDelay       = 2.5f;
 
-    // ── State ────────────────────────────────────────────────────────────────
+    // Internal State
     private bool       fightActive;
     private BoxBattler winner;
 
-    // ── Lifecycle ────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Lifecycle
+    // -------------------------------------------------------------------------
 
     private void Start()
     {
@@ -43,16 +49,17 @@ public class FightManager : MonoBehaviour
         bool playerAlive   = playerFighter   != null && playerFighter.IsAlive;
         bool opponentAlive = opponentFighter != null && opponentFighter.IsAlive;
 
-        if (!playerAlive && !opponentAlive) EndFight(null);
-        else if (!playerAlive)             EndFight(opponentFighter);
-        else if (!opponentAlive)           EndFight(playerFighter);
+        if      (!playerAlive && !opponentAlive) EndFight(null);
+        else if (!playerAlive)                   EndFight(opponentFighter);
+        else if (!opponentAlive)                 EndFight(playerFighter);
     }
 
-    // ── Setup ─────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Setup
+    // -------------------------------------------------------------------------
 
     private void AutoAssignFighters()
     {
-        // Try tag-based lookup as a fallback if not assigned in Inspector.
         if (playerFighter == null)
         {
             GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -65,7 +72,8 @@ public class FightManager : MonoBehaviour
         }
 
         if (playerFighter == null || opponentFighter == null)
-            Debug.LogError("[FightManager] Could not find both fighters. Assign them in the Inspector or tag them 'Player' / 'Opponent'.");
+            Debug.LogError("[FightManager] Could not find both fighters. " +
+                           "Assign them in the Inspector or tag them 'Player' / 'Opponent'.");
     }
 
     private void SetupPlayerFighter()
@@ -74,8 +82,8 @@ public class FightManager : MonoBehaviour
 
         if (GameManager.Instance == null || !GameManager.Instance.HasParts)
         {
-            Debug.LogWarning("[FightManager] No GameManager or no parts set — player fighter will use default/empty parts. " +
-                             "This is fine for direct scene testing.");
+            Debug.LogWarning("[FightManager] No GameManager parts found — " +
+                             "player fighter has empty/default stats. Fine for direct scene testing.");
             return;
         }
 
@@ -90,7 +98,8 @@ public class FightManager : MonoBehaviour
     {
         if (opponentFighter == null || opponentGenerator == null)
         {
-            Debug.LogWarning("[FightManager] OpponentGenerator not assigned — opponent uses whatever parts are pre-set on its prefab.");
+            Debug.LogWarning("[FightManager] OpponentGenerator not assigned — " +
+                             "opponent uses whatever parts are pre-set on its MutantFighter.");
             return;
         }
 
@@ -104,10 +113,14 @@ public class FightManager : MonoBehaviour
         Debug.Log("=== FIGHT START ===");
     }
 
-    // ── End Fight ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // End Fight
+    // -------------------------------------------------------------------------
 
     private void EndFight(BoxBattler fightWinner)
     {
+        // fightActive = false is the guard — Update() returns early from now on,
+        // so this method can never be called more than once per fight.
         fightActive = false;
         winner      = fightWinner;
 
@@ -122,19 +135,46 @@ public class FightManager : MonoBehaviour
         else if (winner == opponentFighter)
         {
             Debug.Log("=== OPPONENT WINS ===");
+            // Clear player parts so the slot machine assigns fresh ones.
+            GameManager.Instance?.ResetTournament();
         }
         else
         {
+            // Tie — treated as a loss.
             Debug.Log("=== TIE — both fighters fell! ===");
+            GameManager.Instance?.ResetTournament();
         }
 
-        // TODO: Show your results UI here, then call LoadNextScene() when ready.
+        StartCoroutine(NavigateAfterDelay(winner == playerFighter));
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Waits for resultDelay seconds so the player can see what happened,
+    /// then loads the appropriate scene.
+    /// </summary>
+    private IEnumerator NavigateAfterDelay(bool playerWon)
+    {
+        yield return new WaitForSeconds(resultDelay);
+
+        if (!playerWon)
+        {
+            SceneManager.LoadScene(lossSceneName);
+            yield break;
+        }
+
+        // Player won — check if the whole tournament is complete.
+        bool tournamentDone = GameManager.Instance != null
+                              && GameManager.Instance.IsTournamentOver();
+        SceneManager.LoadScene(tournamentDone ? championSceneName : nextSceneName);
+    }
+
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Called by BoxBattler to get the opposing fighter for directional dashing.
+    /// Returns the opposing BoxBattler for the given fighter.
+    /// Used by BoxBattler to aim its dash.
     /// </summary>
     public BoxBattler GetOpponentOf(BoxBattler fighter)
     {
@@ -143,9 +183,10 @@ public class FightManager : MonoBehaviour
         return null;
     }
 
-    public bool       PlayerWon()  => winner == playerFighter;
-    public BoxBattler GetWinner()  => winner;
+    public bool       PlayerWon() => winner == playerFighter;
+    public BoxBattler GetWinner() => winner;
 
+    /// <summary>Manually trigger scene load (useful for UI buttons).</summary>
     public void LoadNextScene()
     {
         if (!string.IsNullOrEmpty(nextSceneName))
