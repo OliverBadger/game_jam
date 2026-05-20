@@ -1,149 +1,189 @@
 using System.Collections;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody))]
+/// <summary>
+/// Drives the 2D physics combat for a fighter.
+/// Stats are pulled from MutantFighter via the OnPartsChanged event — never
+/// set manually. All public fields from the original are now private.
+/// </summary>
+[RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(MutantFighter))]
 public class BoxBattler : MonoBehaviour
 {
-    [Header("Fighter References")]
+    // ── Inspector Tuning (private but visible in Inspector) ──────────────────
+    [SerializeField] private float dashForce         = 18f;
+    [SerializeField] private float knockbackForce    = 12f;
+    [SerializeField] private float baseAttackCooldown = 3f;
+
+    // ── Component References ─────────────────────────────────────────────────
     private MutantFighter mutant;
-    private Rigidbody rb;
-    
-    [Header("Combat Stats (Read from MutantFighter)")]
-    public int maxHealth;
-    public int currentHealth;
-    public int attackDamage;
-    public int speedStat;
-    public float baseAttackCooldown = 3f;
-    
-    [Header("Physics")]
-    public float dashForce = 15f;
-    public float knockbackForce = 10f;
-    
-    [Header("Dash State")]
+    private Rigidbody2D   rb;
+    private WobblyBox     wobble;
+    private FightManager  fightManager;
+
+    // ── Combat Stats (set from MutantFighter via event) ──────────────────────
+    private int   maxHealth;
+    private int   currentHealth;
+    private int   attackDamage;
+    private int   speedStat;
+
+    // ── Internal State ───────────────────────────────────────────────────────
     private float dashTimer;
-    public bool isDashing = false;
-    public bool isAlive = true;
-    void Start()
+    private bool  _isDashing;
+    private bool  _isAlive = true;
+
+    // ── Read-Only Properties (FightManager and BoxBattler cross-read these) ──
+    public bool IsAlive        => _isAlive;
+    public int  CurrentHealth  => currentHealth;
+    public int  MaxHealth      => maxHealth;
+    public int  AttackDamage   => attackDamage;
+
+    // ── Lifecycle ────────────────────────────────────────────────────────────
+
+    private void Awake()
     {
-        // Get references
         mutant = GetComponent<MutantFighter>();
-        rb = GetComponent<Rigidbody>();
-        
-        // Pull final stats from the mutant
-        InitializeStats();
+        rb     = GetComponent<Rigidbody2D>();
+
+        // Subscribe now (before any Start fires) so we receive the event when
+        // FightManager.Start() calls mutant.SetParts().
+        mutant.OnPartsChanged += OnPartsReady;
     }
 
-    void InitializeStats()
+    private void Start()
     {
-        attackDamage = mutant.currentAttack;
-        maxHealth = mutant.currentHealth;
+        // Cache scene-level references. All Awake() calls have run by now,
+        // so MutantVisuals has already created the VisualRoot + WobblyBox.
+        fightManager = FindFirstObjectByType<FightManager>();
+        wobble       = GetComponentInChildren<WobblyBox>();
+
+        // Stagger each fighter's first dash so they don't all charge at frame 0.
+        dashTimer = Random.Range(0.5f, baseAttackCooldown);
+    }
+
+    private void OnDestroy()
+    {
+        if (mutant != null) mutant.OnPartsChanged -= OnPartsReady;
+    }
+
+    // ── Stat Initialisation ───────────────────────────────────────────────────
+
+    private void OnPartsReady(AnimalData head, AnimalData body, AnimalData legs)
+    {
+        attackDamage  = mutant.CurrentAttack;
+        maxHealth     = mutant.CurrentHealth;
         currentHealth = maxHealth;
-        speedStat = mutant.currentSpeed;
-        
-        // Reset dash timer
-        dashTimer = 0f;
-        
-        Debug.Log($"{gameObject.name} initialized: {maxHealth}HP, {attackDamage} ATK, {speedStat} SPD");
+        speedStat     = mutant.CurrentSpeed;
+        Debug.Log($"[BoxBattler] {gameObject.name} ready — {maxHealth}HP / {attackDamage}ATK / {speedStat}SPD");
     }
 
-    void Update()
+    // ── Per-Frame Logic ───────────────────────────────────────────────────────
+
+    private void Update()
     {
-        if (!isAlive) return;
+        if (!_isAlive) return;
 
-        // 1. Calculate Dash Frequency based on Speed
-        // Higher speed = more frequent attacks (lower cooldown multiplier)
-        float cooldownModifier = 1f / (1f + (speedStat * 0.05f)); // Speed increases attack frequency
-        dashTimer -= Time.deltaTime / cooldownModifier;
+        // Always face the opponent so scale-flip is smooth even as they shuffle.
+        FaceOpponent();
 
-        if (dashTimer <= 0f && !isDashing)
-        {
+        // Speed stat shortens the cooldown between dashes.
+        // Formula: higher speed → larger divisor → shorter effective cooldown.
+        float cooldownScale = 1f / (1f + speedStat * 0.05f);
+        dashTimer -= Time.deltaTime / cooldownScale;
+
+        if (dashTimer <= 0f && !_isDashing)
             StartCoroutine(PerformDash());
-        }
     }
 
-    IEnumerator PerformDash()
-    {
-        isDashing = true;
-        
-        // 2. The Forward Boost
-        // Adds a sudden impulse of force forward
-        rb.AddForce(transform.forward * dashForce, ForceMode.Impulse);
+    // ── Dashing ───────────────────────────────────────────────────────────────
 
-        // 3. Dash Duration (Active Damage Window)
-        // Faster attackers have shorter dash duration
-        float dashDuration = 0.5f / (1f + (speedStat * 0.03f));
+    private IEnumerator PerformDash()
+    {
+        _isDashing = true;
+        float direction = GetOpponentHorizontalSign();
+        wobble?.SetDashMode(true, direction);
+
+        // Launch toward the opponent.
+        Vector2 dashDir = GetDirectionToOpponent();
+        rb.AddForce(dashDir * dashForce, ForceMode2D.Impulse);
+
+        // Faster fighters have a shorter active-hit window.
+        float dashDuration = 0.45f / (1f + speedStat * 0.03f);
         yield return new WaitForSeconds(dashDuration);
-        
-        isDashing = false;
-        
-        // Reset timer (Base cooldown before speed modifies it)
-        dashTimer = baseAttackCooldown; 
+
+        _isDashing = false;
+        wobble?.SetDashMode(false);
+        dashTimer = baseAttackCooldown;
     }
 
-    void OnCollisionEnter(Collision collision)
+    // ── Collision ─────────────────────────────────────────────────────────────
+
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!isAlive) return;
+        if (!_isAlive || !_isDashing) return;
 
-        // Check if we hit another fighter
         BoxBattler enemy = collision.gameObject.GetComponent<BoxBattler>();
+        if (enemy == null || !enemy.IsAlive) return;
 
-        if (enemy != null && enemy.isAlive)
-        {
-            // If I am dashing, I hit them!
-            if (this.isDashing)
-            {
-                Debug.Log($"{gameObject.name} smashed into {enemy.gameObject.name}!");
-                
-                // Calculate knockback direction (away from me)
-                Vector3 pushDirection = (enemy.transform.position - transform.position).normalized;
-                
-                // Add a slight upward angle so they bounce back in a silly way
-                pushDirection.y = 0.5f; 
+        // Push enemy away with a slight upward arc for that bouncy feel.
+        Vector2 pushDir = ((Vector2)enemy.transform.position - (Vector2)transform.position).normalized;
+        pushDir.y += 0.4f;
+        pushDir.Normalize();
 
-                // Apply the Knockback force to the enemy
-                enemy.GetComponent<Rigidbody>().AddForce(pushDirection * knockbackForce, ForceMode.Impulse);
-
-                // Deal damage equal to this fighter's attack stat
-                enemy.TakeDamage(this.attackDamage);
-            }
-        }
+        enemy.GetComponent<Rigidbody2D>().AddForce(pushDir * knockbackForce, ForceMode2D.Impulse);
+        enemy.TakeDamage(attackDamage);
     }
 
-    /// <summary>
-    /// Reduces health and checks if fighter is defeated
-    /// </summary>
+    // ── Damage & Defeat ───────────────────────────────────────────────────────
+
     public void TakeDamage(int damage)
     {
+        if (!_isAlive) return;
         currentHealth -= damage;
-        Debug.Log($"{gameObject.name} took {damage} damage! Health: {currentHealth}/{maxHealth}");
-        
-        if (currentHealth <= 0)
-        {
-            Defeat();
-        }
+        Debug.Log($"[BoxBattler] {gameObject.name} took {damage} dmg! HP: {currentHealth}/{maxHealth}");
+        if (currentHealth <= 0) Defeat();
     }
 
-    /// <summary>
-    /// Called when health reaches 0 - fighter is knocked out
-    /// </summary>
-    public void Defeat()
+    private void Defeat()
     {
-        isAlive = false;
-        isDashing = false;
-        
-        Debug.Log($"{gameObject.name} has been defeated!");
-        
-        // Disable physics and movement
-        rb.isKinematic = true;
+        _isAlive   = false;
+        _isDashing = false;
+        StopAllCoroutines();
+        rb.linearVelocity = Vector2.zero;
+        rb.isKinematic    = true;
+        wobble?.SetDashMode(false);
         enabled = false;
+        Debug.Log($"[BoxBattler] {gameObject.name} has been defeated!");
     }
 
-    /// <summary>
-    /// Returns winner status
-    /// </summary>
-    public bool HasWon()
+    public bool HasWon() => _isAlive && currentHealth > 0;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private BoxBattler GetOpponent() => fightManager?.GetOpponentOf(this);
+
+    private Vector2 GetDirectionToOpponent()
     {
-        return isAlive && currentHealth > 0;
+        BoxBattler opp = GetOpponent();
+        if (opp == null) return transform.right;
+        return ((Vector2)opp.transform.position - (Vector2)transform.position).normalized;
+    }
+
+    private float GetOpponentHorizontalSign()
+    {
+        BoxBattler opp = GetOpponent();
+        if (opp == null) return 1f;
+        return opp.transform.position.x > transform.position.x ? 1f : -1f;
+    }
+
+    private void FaceOpponent()
+    {
+        BoxBattler opp = GetOpponent();
+        if (opp == null) return;
+
+        bool opponentIsRight = opp.transform.position.x > transform.position.x;
+        Vector3 s = transform.localScale;
+        s.x = opponentIsRight ? Mathf.Abs(s.x) : -Mathf.Abs(s.x);
+        transform.localScale = s;
     }
 }

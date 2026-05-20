@@ -1,28 +1,35 @@
 using System;
 using UnityEngine;
 
+// Runs before BoxBattler (order 0) so stats are ready when BoxBattler.Start() fires.
+[DefaultExecutionOrder(-10)]
 public class MutantFighter : MonoBehaviour
 {
-    [Header("Mutant Parts (Assign your Scriptable Objects here)")]
-    public AnimalData headPart;
-    public AnimalData bodyPart;
-    public AnimalData legsPart;
+    // Parts are private — set by FightManager (player) or OpponentGenerator (AI).
+    // They are NOT shown in the Inspector to keep the UI clean.
+    private AnimalData headPart;
+    private AnimalData bodyPart;
+    private AnimalData legsPart;
 
-    [Header("Final Combat Stats")]
-    public int currentAttack;
-    public int currentHealth;
-    public int currentSpeed;
-    
-    [Header("Combo Info")]
-    public float comboMultiplier = 1f;
-    public string comboDescription = "No combo";
+    // Final stats are read-only from the outside.
+    private int _currentAttack;
+    private int _currentHealth;
+    private int _currentSpeed;
+    private float _comboMultiplier = 1f;
+    private string _comboDescription = "No combo";
 
-    // Event fired when parts are assigned/generated so visuals can update
+    public int   CurrentAttack      => _currentAttack;
+    public int   CurrentHealth      => _currentHealth;
+    public int   CurrentSpeed       => _currentSpeed;
+    public float ComboMultiplier    => _comboMultiplier;
+    public string ComboDescription  => _comboDescription;
+
+    // Fired whenever parts change so MutantVisuals (and BoxBattler) can react.
     public event Action<AnimalData, AnimalData, AnimalData> OnPartsChanged;
 
     /// <summary>
-    /// Assign parts at runtime and regenerate stats. This is intended to be used by selection managers
-    /// or scene transfer code to set parts on a spawned fighter.
+    /// Assign all three parts at once. Called by FightManager for the player
+    /// (using GameManager data) or by OpponentGenerator for AI fighters.
     /// </summary>
     public void SetParts(AnimalData head, AnimalData body, AnimalData legs)
     {
@@ -32,79 +39,83 @@ public class MutantFighter : MonoBehaviour
         GenerateMutantStats();
     }
 
-    void Start()
+    private void Start()
     {
-        GenerateMutantStats();
+        // If parts were pre-assigned via SetParts before Start (execution order),
+        // they are already generated. Otherwise warn — parts must come from SetParts.
+        if (headPart == null && bodyPart == null && legsPart == null)
+            Debug.LogWarning($"[MutantFighter] {gameObject.name}: No parts assigned. Call SetParts() before Start.");
     }
 
     public void GenerateMutantStats()
     {
-        // 1. Pull base stats from each part
-        // Safe-guards: if a part is null, use 0 and log a warning
-        if (headPart == null) Debug.LogWarning($"{gameObject.name}: headPart is null");
-        if (bodyPart == null) Debug.LogWarning($"{gameObject.name}: bodyPart is null");
-        if (legsPart == null) Debug.LogWarning($"{gameObject.name}: legsPart is null");
+        if (headPart == null) Debug.LogWarning($"[MutantFighter] {gameObject.name}: headPart is null");
+        if (bodyPart == null) Debug.LogWarning($"[MutantFighter] {gameObject.name}: bodyPart is null");
+        if (legsPart == null) Debug.LogWarning($"[MutantFighter] {gameObject.name}: legsPart is null");
 
-        currentAttack = headPart != null ? headPart.headAttack : 0;
-        currentHealth = bodyPart != null ? bodyPart.bodyHealth : 0;
-        currentSpeed = legsPart != null ? legsPart.legsSpeed : 0;
+        // Base stats: head drives attack, body drives health, legs drive speed.
+        _currentAttack = headPart != null ? headPart.headAttack : 0;
+        _currentHealth = bodyPart != null ? bodyPart.bodyHealth : 0;
+        _currentSpeed  = legsPart != null ? legsPart.legsSpeed  : 0;
 
-        // 2. Calculate and apply combo multipliers
-        CalculateCombo();
+        CalculateAndApplyCombo();
 
-        Debug.Log($"Generated Mutant with {currentAttack} Atk, {currentHealth} HP, and {currentSpeed} Spd! {comboDescription}");
+        Debug.Log($"[MutantFighter] {gameObject.name}: {_currentAttack}ATK / {_currentHealth}HP / {_currentSpeed}SPD — {_comboDescription}");
 
-        // Notify visuals or other listeners that parts (and stats) have been generated/changed
         OnPartsChanged?.Invoke(headPart, bodyPart, legsPart);
     }
 
-    private void CalculateCombo()
+    // ── Combo Logic ──────────────────────────────────────────────────────────
+    // Combos only multiply the STATS BELONGING TO THE MATCHING ANIMAL.
+    // Example: Bear head + Bear body → x2 to attack (from bear head) AND health
+    //          (from bear body). The lion legs speed is untouched.
+    // Triple match → x3 ALL stats (jackpot!).
+    private void CalculateAndApplyCombo()
     {
-        comboMultiplier = 1f;
-        comboDescription = "No combo";
+        _comboMultiplier   = 1f;
+        _comboDescription  = "No Combo";
 
-        // Check for triple match (all three parts are the same animal)
-        if (headPart == bodyPart && bodyPart == legsPart)
+        // Triple match — all three slots the same animal
+        if (headPart != null && headPart == bodyPart && bodyPart == legsPart)
         {
-            comboMultiplier = 1.5f;
-            comboDescription = $"TRIPLE COMBO! All {headPart.animalName}! +50% stats";
-            ApplyComboMultiplier();
+            _currentAttack = Mathf.RoundToInt(_currentAttack * 3f);
+            _currentHealth = Mathf.RoundToInt(_currentHealth * 3f);
+            _currentSpeed  = Mathf.RoundToInt(_currentSpeed  * 3f);
+            _comboMultiplier  = 3f;
+            _comboDescription = $"TRIPLE {headPart.animalName.ToUpper()}! x3 ALL STATS — JACKPOT!";
             return;
         }
 
-        // Check for double matches
-        // Head + Body match
-        if (headPart == bodyPart)
+        // Adjacent double: Head + Body (multiplies attack and health)
+        if (headPart != null && headPart == bodyPart)
         {
-            comboMultiplier = 1.2f;
-            comboDescription = $"Head + Body bonus! {headPart.animalName} combo! +20%";
-            ApplyComboMultiplier();
+            _currentAttack = Mathf.RoundToInt(_currentAttack * 2f);
+            _currentHealth = Mathf.RoundToInt(_currentHealth * 2f);
+            _comboMultiplier  = 2f;
+            _comboDescription = $"{headPart.animalName} Head+Body Combo! x2 ATK+HP";
             return;
         }
 
-        // Body + Legs match
-        if (bodyPart == legsPart)
+        // Adjacent double: Body + Legs (multiplies health and speed)
+        if (bodyPart != null && bodyPart == legsPart)
         {
-            comboMultiplier = 1.2f;
-            comboDescription = $"Body + Legs bonus! {bodyPart.animalName} combo! +20%";
-            ApplyComboMultiplier();
+            _currentHealth = Mathf.RoundToInt(_currentHealth * 2f);
+            _currentSpeed  = Mathf.RoundToInt(_currentSpeed  * 2f);
+            _comboMultiplier  = 2f;
+            _comboDescription = $"{bodyPart.animalName} Body+Legs Combo! x2 HP+SPD";
             return;
         }
 
-        // Head + Legs match
-        if (headPart == legsPart)
+        // Non-adjacent double: Head + Legs (multiplies attack and speed)
+        if (headPart != null && headPart == legsPart)
         {
-            comboMultiplier = 1.2f;
-            comboDescription = $"Head + Legs bonus! {headPart.animalName} combo! +20%";
-            ApplyComboMultiplier();
+            _currentAttack = Mathf.RoundToInt(_currentAttack * 2f);
+            _currentSpeed  = Mathf.RoundToInt(_currentSpeed  * 2f);
+            _comboMultiplier  = 2f;
+            _comboDescription = $"{headPart.animalName} Head+Legs Combo! x2 ATK+SPD";
             return;
         }
     }
 
-    private void ApplyComboMultiplier()
-    {
-        currentAttack = Mathf.RoundToInt(currentAttack * comboMultiplier);
-        currentHealth = Mathf.RoundToInt(currentHealth * comboMultiplier);
-        currentSpeed = Mathf.RoundToInt(currentSpeed * comboMultiplier);
     }
 }
