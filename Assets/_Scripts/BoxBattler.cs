@@ -30,7 +30,10 @@ public class BoxBattler : MonoBehaviour
     // ── Internal State ───────────────────────────────────────────────────────
     private float dashTimer;
     private bool  _isDashing;
-    private bool  _isAlive = true;
+    private bool  _isAlive       = true;
+    // Prevents double-damage when two physics contacts register within one dash window.
+    // Reset at the start of every dash so each attack can land exactly once.
+    private bool  _hasHitThisDash;
 
     // ── Read-Only Properties (FightManager and BoxBattler cross-read these) ──
     public bool IsAlive        => _isAlive;
@@ -99,8 +102,9 @@ public class BoxBattler : MonoBehaviour
 
     private IEnumerator PerformDash()
     {
-        _isDashing = true;
-        float direction = GetOpponentHorizontalSign();
+        _isDashing        = true;
+        _hasHitThisDash   = false;   // fresh attack — allow exactly one hit
+        float direction   = GetOpponentHorizontalSign();
         wobble?.SetDashMode(true, direction);
 
         // Launch toward the opponent.
@@ -120,10 +124,13 @@ public class BoxBattler : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!_isAlive || !_isDashing) return;
+        // _hasHitThisDash ensures one hit per dash even if physics re-contacts.
+        if (!_isAlive || !_isDashing || _hasHitThisDash) return;
 
         BoxBattler enemy = collision.gameObject.GetComponent<BoxBattler>();
         if (enemy == null || !enemy.IsAlive) return;
+
+        _hasHitThisDash = true;   // lock out further hits this dash
 
         // Push enemy away with a slight upward arc for that bouncy feel.
         Vector2 pushDir = ((Vector2)enemy.transform.position - (Vector2)transform.position).normalized;
@@ -146,8 +153,9 @@ public class BoxBattler : MonoBehaviour
 
     private void Defeat()
     {
-        _isAlive   = false;
-        _isDashing = false;
+        _isAlive        = false;
+        _isDashing      = false;
+        _hasHitThisDash = false;
         StopAllCoroutines();
         rb.linearVelocity = Vector2.zero;
         rb.isKinematic    = true;

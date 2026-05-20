@@ -144,6 +144,11 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public float GetEffectiveDropRate(AnimalData animal)
     {
+        // Guard against null assets or assets with no name — both would crash
+        // Dictionary.TryGetValue with a null key (ArgumentNullException).
+        if (animal == null) return 0f;
+        if (string.IsNullOrEmpty(animal.animalName)) return Mathf.Max(0f, animal.baseDropRate);
+
         float modifier = dropRateModifiers.TryGetValue(animal.animalName, out float m) ? m : 0f;
         return Mathf.Max(0f, animal.baseDropRate + modifier);
     }
