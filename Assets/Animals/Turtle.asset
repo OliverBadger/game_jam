@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Turtle
   m_EditorClassIdentifier: Assembly-CSharp::AnimalData
   animalName: Turtle
-  baseDropRate: 300
+  baseDropRate: 30
   headAttack: 4
   bodyHealth: 40
   legsSpeed: 2

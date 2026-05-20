@@ -39,6 +39,10 @@ public class GameManager : MonoBehaviour
     // e.g. "Turtle" -> -10f reduces turtle appearance chance by 10 percentage points.
     private readonly Dictionary<string, float> dropRateModifiers = new();
 
+    // Names of ShopItem assets the player has already bought this tournament.
+    // Used to enforce ShopItem.oneShot. Cleared on ResetTournament().
+    private readonly HashSet<string> purchasedItems = new();
+
     // ─── Public Read-Only Properties ─────────────────────────────────────────
     public AnimalData PlayerHead  => playerHead;
     public AnimalData PlayerBody  => playerBody;
@@ -139,6 +143,29 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Stackable variant of SetDropRateModifier — adds delta to the existing
+    /// modifier instead of replacing it. The shop uses this so repeat purchases
+    /// of the same upgrade compound.
+    /// </summary>
+    public void AdjustDropRateModifier(string animalName, float delta)
+    {
+        if (string.IsNullOrEmpty(animalName)) return;
+        float current = dropRateModifiers.TryGetValue(animalName, out float m) ? m : 0f;
+        dropRateModifiers[animalName] = current + delta;
+        Debug.Log($"[GameManager] Drop rate stack: {animalName} now {(current + delta):+0.#;-0.#}%");
+    }
+
+    // ─── Shop One-Shot Purchase Tracking ─────────────────────────────────────
+
+    public bool HasPurchased(string itemName)
+        => !string.IsNullOrEmpty(itemName) && purchasedItems.Contains(itemName);
+
+    public void MarkPurchased(string itemName)
+    {
+        if (!string.IsNullOrEmpty(itemName)) purchasedItems.Add(itemName);
+    }
+
+    /// <summary>
     /// Get the effective (shop-modified) drop rate for a given AnimalData asset.
     /// Clamped to a minimum of 0 so an animal can be effectively removed from the pool.
     /// </summary>
@@ -171,6 +198,10 @@ public class GameManager : MonoBehaviour
         actionsThisFight   = 5;
         spinsThisFight     = 3;
         goldBonusThisFight = 20;
+        // Wipe shop state — fresh tournament means fresh drop rates and a
+        // shop catalog where one-shot items can be bought again.
+        dropRateModifiers.Clear();
+        purchasedItems.Clear();
         Debug.Log("[GameManager] Tournament reset. Gold preserved.");
     }
 }
