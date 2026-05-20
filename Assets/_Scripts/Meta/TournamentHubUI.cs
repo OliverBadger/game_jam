@@ -21,7 +21,7 @@ public class TournamentHubUI : MonoBehaviour
     [SerializeField] private TMP_Text statusText;
 
     [Header("Scenes")]
-    [SerializeField] private string shopSceneName           = "Shop";
+    [SerializeField] private string upgradeShopSceneName    = "UpgradeShop";
     [SerializeField] private string budgetSelectorSceneName = "BudgetSelector";
     [SerializeField] private string championSceneName       = "Champion";
 
@@ -57,13 +57,17 @@ public class TournamentHubUI : MonoBehaviour
         if (goldText != null)
             goldText.text = $"Gold: {GameManager.Instance.Gold}";
         if (statusText != null)
-            statusText.text = "Spend gold in the shop, or jump into the next fight.";
+            statusText.text = "Buy upgrades, or jump into the next fight.";
     }
 
-    public void OpenShop()
+    public void OpenUpgradeShop()
     {
-        if (!string.IsNullOrEmpty(shopSceneName)) SceneManager.LoadScene(shopSceneName);
+        if (!string.IsNullOrEmpty(upgradeShopSceneName))
+            SceneManager.LoadScene(upgradeShopSceneName);
     }
+
+    /// <summary>Back-compat alias for any Button.OnClick still wired to "OpenShop".</summary>
+    public void OpenShop() => OpenUpgradeShop();
 
     public void OpenBudgetSelector()
     {

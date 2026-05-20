@@ -43,6 +43,18 @@ public class GameManager : MonoBehaviour
     // Used to enforce ShopItem.oneShot. Cleared on ResetTournament().
     private readonly HashSet<string> purchasedItems = new();
 
+    // Optional companion component on the same GameObject. Found lazily so
+    // GameManager still works in isolation when no upgrades are present.
+    private UpgradeRegistry _upgrades;
+    public UpgradeRegistry Upgrades
+    {
+        get
+        {
+            if (_upgrades == null) _upgrades = GetComponent<UpgradeRegistry>();
+            return _upgrades;
+        }
+    }
+
     // ─── Public Read-Only Properties ─────────────────────────────────────────
     public AnimalData PlayerHead  => playerHead;
     public AnimalData PlayerBody  => playerBody;
@@ -130,6 +142,26 @@ public class GameManager : MonoBehaviour
         goldBonusThisFight = goldBonus;
     }
 
+    // ─── Effective Budgets (fold in upgrade bonuses) ─────────────────────────
+    // The SlotMachineManager calls these instead of the raw fields so that
+    // every owned ActionBudgetBoost / SpinBudgetBoost upgrade tier is honored.
+
+    public int GetEffectiveSpinsThisFight()
+        => spinsThisFight   + (Upgrades != null ? Upgrades.GetTotalSpinBonus()   : 0);
+
+    public int GetEffectiveActionsThisFight()
+        => actionsThisFight + (Upgrades != null ? Upgrades.GetTotalActionBonus() : 0);
+
+    /// <summary>
+    /// Applies GoldRewardBoost upgrades to a base gold amount.
+    /// FightManager passes its win reward through this before crediting.
+    /// </summary>
+    public int ApplyGoldRewardMultiplier(int baseAmount)
+    {
+        float mult = Upgrades != null ? Upgrades.GetGoldRewardMultiplier() : 1f;
+        return Mathf.RoundToInt(baseAmount * mult);
+    }
+
     // ─── Shop Drop Rate Modifiers ─────────────────────────────────────────────
 
     /// <summary>
@@ -202,6 +234,7 @@ public class GameManager : MonoBehaviour
         // shop catalog where one-shot items can be bought again.
         dropRateModifiers.Clear();
         purchasedItems.Clear();
+        Upgrades?.ResetForNewTournament();
         Debug.Log("[GameManager] Tournament reset. Gold preserved.");
     }
 }

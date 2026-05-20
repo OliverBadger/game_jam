@@ -71,8 +71,9 @@ public class SlotMachineManager : MonoBehaviour
         // so designers can iterate without the full flow.
         if (GameManager.Instance != null)
         {
-            spinsRemaining   = GameManager.Instance.SpinsThisFight;
-            actionsRemaining = GameManager.Instance.ActionsThisFight;
+            // Effective getters fold in any owned upgrade tiers.
+            spinsRemaining   = GameManager.Instance.GetEffectiveSpinsThisFight();
+            actionsRemaining = GameManager.Instance.GetEffectiveActionsThisFight();
         }
         else
         {
