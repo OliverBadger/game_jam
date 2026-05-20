@@ -76,7 +76,7 @@ public class MutantFighter : MonoBehaviour
             _currentHealth = Mathf.RoundToInt(_currentHealth * 3f);
             _currentSpeed  = Mathf.RoundToInt(_currentSpeed  * 3f);
             _comboMultiplier  = 3f;
-            _comboDescription = $"TRIPLE {headPart.animalName.ToUpper()}! x3 ALL STATS — JACKPOT!";
+            _comboDescription = $"TRIPLE {headPart.animalName?.ToUpper() ?? "???"}! x3 ALL STATS — JACKPOT!";
             return;
         }
 

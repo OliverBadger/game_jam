@@ -89,10 +89,10 @@ public class BoxBattler : MonoBehaviour
         // Always face the opponent so scale-flip is smooth even as they shuffle.
         FaceOpponent();
 
-        // Speed stat shortens the cooldown between dashes.
-        // Formula: higher speed → larger divisor → shorter effective cooldown.
-        float cooldownScale = 1f / (1f + speedStat * 0.05f);
-        dashTimer -= Time.deltaTime / cooldownScale;
+        // Speed stat shortens the cooldown: each point of speed adds 5% to the
+        // drain rate.  A Lion (28 SPD) drains the timer 2.4× faster than a
+        // Turtle (2 SPD), giving it roughly half the cooldown.
+        dashTimer -= Time.deltaTime * (1f + speedStat * 0.05f);
 
         if (dashTimer <= 0f && !_isDashing)
             StartCoroutine(PerformDash());
@@ -157,8 +157,9 @@ public class BoxBattler : MonoBehaviour
         _isDashing      = false;
         _hasHitThisDash = false;
         StopAllCoroutines();
-        rb.linearVelocity = Vector2.zero;
-        rb.isKinematic    = true;
+        rb.linearVelocity  = Vector2.zero;
+        rb.angularVelocity = 0f;        // stop any spin from knockback
+        rb.isKinematic     = true;
         wobble?.SetDashMode(false);
         enabled = false;
         Debug.Log($"[BoxBattler] {gameObject.name} has been defeated!");
