@@ -30,6 +30,9 @@ public class FightManager : MonoBehaviour
     private bool       fightActive;
     private BoxBattler winner;
 
+    // Read-only so UIManager and other UI scripts can poll state each frame.
+    public bool FightHasEnded { get; private set; }
+
     // -------------------------------------------------------------------------
     // Lifecycle
     // -------------------------------------------------------------------------
@@ -121,8 +124,9 @@ public class FightManager : MonoBehaviour
     {
         // fightActive = false is the guard — Update() returns early from now on,
         // so this method can never be called more than once per fight.
-        fightActive = false;
-        winner      = fightWinner;
+        fightActive     = false;
+        FightHasEnded   = true;
+        winner          = fightWinner;
 
         if (winner == playerFighter)
         {
@@ -185,6 +189,10 @@ public class FightManager : MonoBehaviour
 
     public bool       PlayerWon() => winner == playerFighter;
     public BoxBattler GetWinner() => winner;
+
+    /// <summary>Direct read-only access used by UIManager to refresh HUD each frame.</summary>
+    public BoxBattler GetPlayerFighter()   => playerFighter;
+    public BoxBattler GetOpponentFighter() => opponentFighter;
 
     /// <summary>Manually trigger scene load (useful for UI buttons).</summary>
     public void LoadNextScene()
