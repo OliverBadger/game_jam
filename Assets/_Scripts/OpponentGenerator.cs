@@ -35,18 +35,21 @@ public class OpponentGenerator : MonoBehaviour
         Debug.Log($"[OpponentGenerator] Generated opponent: {head?.animalName} head / {body?.animalName} body / {legs?.animalName} legs");
     }
 
-    // Weighted random: each animal's effective drop rate is its weight.
-    // GameManager.GetEffectiveDropRate applies any shop modifiers.
     private AnimalData RollPart()
     {
         float totalWeight = 0f;
         foreach (AnimalData animal in allAnimals)
+        {
+            if (animal == null) continue;   // skip null slots in the Inspector array
             totalWeight += GetRate(animal);
+        }
 
         if (totalWeight <= 0f)
         {
-            Debug.LogWarning("[OpponentGenerator] All drop rates are 0. Returning first animal as fallback.");
-            return allAnimals[0];
+            Debug.LogWarning("[OpponentGenerator] All effective drop rates are 0. Returning first non-null animal as fallback.");
+            foreach (AnimalData animal in allAnimals)
+                if (animal != null) return animal;
+            return null;
         }
 
         float roll       = Random.Range(0f, totalWeight);
@@ -54,13 +57,16 @@ public class OpponentGenerator : MonoBehaviour
 
         foreach (AnimalData animal in allAnimals)
         {
+            if (animal == null) continue;
             cumulative += GetRate(animal);
             if (roll <= cumulative)
                 return animal;
         }
 
-        // Floating point safety fallback
-        return allAnimals[allAnimals.Length - 1];
+        // Floating-point safety fallback — return the last non-null entry.
+        for (int i = allAnimals.Length - 1; i >= 0; i--)
+            if (allAnimals[i] != null) return allAnimals[i];
+        return null;
     }
 
     private float GetRate(AnimalData animal)

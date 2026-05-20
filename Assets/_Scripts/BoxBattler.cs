@@ -30,7 +30,10 @@ public class BoxBattler : MonoBehaviour
     // ── Internal State ───────────────────────────────────────────────────────
     private float dashTimer;
     private bool  _isDashing;
-    private bool  _isAlive = true;
+    private bool  _isAlive       = true;
+    // Prevents double-damage when two physics contacts register within one dash window.
+    // Reset at the start of every dash so each attack can land exactly once.
+    private bool  _hasHitThisDash;
 
     // ── Read-Only Properties (FightManager and BoxBattler cross-read these) ──
     public bool IsAlive        => _isAlive;
@@ -86,10 +89,10 @@ public class BoxBattler : MonoBehaviour
         // Always face the opponent so scale-flip is smooth even as they shuffle.
         FaceOpponent();
 
-        // Speed stat shortens the cooldown between dashes.
-        // Formula: higher speed → larger divisor → shorter effective cooldown.
-        float cooldownScale = 1f / (1f + speedStat * 0.05f);
-        dashTimer -= Time.deltaTime / cooldownScale;
+        // Speed stat shortens the cooldown: each point of speed adds 5% to the
+        // drain rate.  A Lion (28 SPD) drains the timer 2.4× faster than a
+        // Turtle (2 SPD), giving it roughly half the cooldown.
+        dashTimer -= Time.deltaTime * (1f + speedStat * 0.05f);
 
         if (dashTimer <= 0f && !_isDashing)
             StartCoroutine(PerformDash());
@@ -99,8 +102,9 @@ public class BoxBattler : MonoBehaviour
 
     private IEnumerator PerformDash()
     {
-        _isDashing = true;
-        float direction = GetOpponentHorizontalSign();
+        _isDashing        = true;
+        _hasHitThisDash   = false;   // fresh attack — allow exactly one hit
+        float direction   = GetOpponentHorizontalSign();
         wobble?.SetDashMode(true, direction);
 
         // Launch toward the opponent.
@@ -120,10 +124,13 @@ public class BoxBattler : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!_isAlive || !_isDashing) return;
+        // _hasHitThisDash ensures one hit per dash even if physics re-contacts.
+        if (!_isAlive || !_isDashing || _hasHitThisDash) return;
 
         BoxBattler enemy = collision.gameObject.GetComponent<BoxBattler>();
         if (enemy == null || !enemy.IsAlive) return;
+
+        _hasHitThisDash = true;   // lock out further hits this dash
 
         // Push enemy away with a slight upward arc for that bouncy feel.
         Vector2 pushDir = ((Vector2)enemy.transform.position - (Vector2)transform.position).normalized;
@@ -146,11 +153,13 @@ public class BoxBattler : MonoBehaviour
 
     private void Defeat()
     {
-        _isAlive   = false;
-        _isDashing = false;
+        _isAlive        = false;
+        _isDashing      = false;
+        _hasHitThisDash = false;
         StopAllCoroutines();
-        rb.linearVelocity = Vector2.zero;
-        rb.isKinematic    = true;
+        rb.linearVelocity  = Vector2.zero;
+        rb.angularVelocity = 0f;        // stop any spin from knockback
+        rb.isKinematic     = true;
         wobble?.SetDashMode(false);
         enabled = false;
         Debug.Log($"[BoxBattler] {gameObject.name} has been defeated!");

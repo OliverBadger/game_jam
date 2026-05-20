@@ -1,8 +1,6 @@
 using System;
 using UnityEngine;
 
-// Runs before BoxBattler (order 0) so stats are ready when BoxBattler.Start() fires.
-[DefaultExecutionOrder(-10)]
 public class MutantFighter : MonoBehaviour
 {
     // Parts are private — set by FightManager (player) or OpponentGenerator (AI).
@@ -39,13 +37,9 @@ public class MutantFighter : MonoBehaviour
         GenerateMutantStats();
     }
 
-    private void Start()
-    {
-        // If parts were pre-assigned via SetParts before Start (execution order),
-        // they are already generated. Otherwise warn — parts must come from SetParts.
-        if (headPart == null && bodyPart == null && legsPart == null)
-            Debug.LogWarning($"[MutantFighter] {gameObject.name}: No parts assigned. Call SetParts() before Start.");
-    }
+    // Start is intentionally omitted — parts MUST be assigned by calling SetParts().
+    // FightManager.Start() (execution order -10) always does this before BoxBattler (order 0)
+    // reads the stats, so there is nothing to validate here at the MonoBehaviour level.
 
     public void GenerateMutantStats()
     {
@@ -82,7 +76,7 @@ public class MutantFighter : MonoBehaviour
             _currentHealth = Mathf.RoundToInt(_currentHealth * 3f);
             _currentSpeed  = Mathf.RoundToInt(_currentSpeed  * 3f);
             _comboMultiplier  = 3f;
-            _comboDescription = $"TRIPLE {headPart.animalName.ToUpper()}! x3 ALL STATS — JACKPOT!";
+            _comboDescription = $"TRIPLE {headPart.animalName?.ToUpper() ?? "???"}! x3 ALL STATS — JACKPOT!";
             return;
         }
 
@@ -115,7 +109,5 @@ public class MutantFighter : MonoBehaviour
             _comboDescription = $"{headPart.animalName} Head+Legs Combo! x2 ATK+SPD";
             return;
         }
-    }
-
     }
 }

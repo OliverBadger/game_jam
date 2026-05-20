@@ -91,8 +91,10 @@ public class MutantVisuals : MonoBehaviour
         bodyRenderer.sprite = (body != null) ? body.bodySprite : null;
         legsRenderer.sprite = (legs != null) ? legs.legsSprite : null;
 
-        if (head  != null) headAnchor.localPosition  = head.headOffset;
-        if (body  != null) bodyAnchor.localPosition  = body.bodyOffset;
-        if (legs  != null) legsAnchor.localPosition  = legs.legsOffset;
+        // Always write anchor positions — fall back to zero so anchors don't
+        // stay frozen at a previous part's offset when a slot becomes empty.
+        headAnchor.localPosition = head != null ? head.headOffset : Vector3.zero;
+        bodyAnchor.localPosition = body != null ? body.bodyOffset : Vector3.zero;
+        legsAnchor.localPosition = legs != null ? legs.legsOffset : Vector3.zero;
     }
 }

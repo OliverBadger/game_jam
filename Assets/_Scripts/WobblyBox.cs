@@ -20,24 +20,35 @@ public class WobblyBox : MonoBehaviour
     private void Update()
     {
         // Always bounce on the Y axis — this gives the idle "alive" feeling.
-        float wave   = Mathf.Sin(Time.time * bounceSpeed);
+        float wave    = Mathf.Sin(Time.time * bounceSpeed);
         float bounceY = Mathf.Abs(wave) * bounceHeight;
         transform.localPosition = new Vector3(0f, bounceY, 0f);
 
+        // When the parent fighter's scale.x is negative (facing left), the
+        // coordinate system is mirrored.  A raw localRotation of Z = +28° would
+        // visually appear as −28°, making the fighter lean backward instead of
+        // forward.  We compensate by flipping the angle with the parent sign.
+        float parentSign = transform.parent != null
+            ? Mathf.Sign(transform.parent.localScale.x)
+            : 1f;
+
         if (inDashMode)
         {
-            // Lean forward in the direction of the dash (tilt into the charge).
-            // dashDirection: +1 means opponent is to the right, so lean right (negative Z in Unity).
-            float targetZ = -dashDirection * dashLeanAngle;
+            // targetZ is the angle we WANT to appear in visual/world space.
+            // Divide by parentSign so the local rotation produces that visual result.
+            float visualTargetZ = -dashDirection * dashLeanAngle;
+            float localTargetZ  = visualTargetZ * parentSign;
+
             float currentZ = transform.localEulerAngles.z;
-            if (currentZ > 180f) currentZ -= 360f;   // Convert to signed -180..180
-            float smoothZ = Mathf.LerpAngle(currentZ, targetZ, Time.deltaTime * dashLeanSpeed);
+            if (currentZ > 180f) currentZ -= 360f;   // convert to signed −180..180
+            float smoothZ = Mathf.LerpAngle(currentZ, localTargetZ, Time.deltaTime * dashLeanSpeed);
             transform.localRotation = Quaternion.Euler(0f, 0f, smoothZ);
         }
         else
         {
-            // Idle sway: gentle left/right rock.
-            transform.localRotation = Quaternion.Euler(0f, 0f, wave * idleLeanAngle);
+            // Idle sway: compensated so the visual rock is always relative to
+            // the character's local forward, regardless of which way they face.
+            transform.localRotation = Quaternion.Euler(0f, 0f, wave * idleLeanAngle * parentSign);
         }
     }
 
