@@ -3,76 +3,96 @@ using UnityEngine;
 [RequireComponent(typeof(MutantFighter))]
 public class MutantVisuals : MonoBehaviour
 {
-    [Header("Anchors (child Transforms) - leave empty to auto-create")]
-    public Transform headAnchor;
-    public Transform bodyAnchor;
-    public Transform legsAnchor;
-
-    [Header("Sprite Renderers (optional - created if missing)")]
-    public SpriteRenderer headRenderer;
-    public SpriteRenderer bodyRenderer;
-    public SpriteRenderer legsRenderer;
+    // All transforms and renderers are private — they are auto-created
+    // at runtime so the Inspector stays uncluttered.
+    private Transform     visualRoot;
+    private Transform     headAnchor;
+    private Transform     bodyAnchor;
+    private Transform     legsAnchor;
+    private SpriteRenderer headRenderer;
+    private SpriteRenderer bodyRenderer;
+    private SpriteRenderer legsRenderer;
 
     private MutantFighter fighter;
 
-    void Awake()
+    private void Awake()
     {
         fighter = GetComponent<MutantFighter>();
-
-        EnsureAnchorsAndRenderers();
+        EnsureVisualHierarchy();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         if (fighter != null) fighter.OnPartsChanged += ApplyParts;
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (fighter != null) fighter.OnPartsChanged -= ApplyParts;
     }
 
-    void EnsureAnchorsAndRenderers()
-    {
-        if (headAnchor == null) headAnchor = CreateChildAnchor("HeadAnchor");
-        if (bodyAnchor == null) bodyAnchor = CreateChildAnchor("BodyAnchor");
-        if (legsAnchor == null) legsAnchor = CreateChildAnchor("LegsAnchor");
+    // ── Hierarchy Builder ────────────────────────────────────────────────────
 
-        if (headRenderer == null) headRenderer = GetOrAddRenderer(headAnchor, 2);
-        if (bodyRenderer == null) bodyRenderer = GetOrAddRenderer(bodyAnchor, 1);
-        if (legsRenderer == null) legsRenderer = GetOrAddRenderer(legsAnchor, 0);
+    private void EnsureVisualHierarchy()
+    {
+        // Find or create a "VisualRoot" child — WobblyBox lives here so the
+        // wobble effect is purely visual and does NOT affect the physics body.
+        Transform found = transform.Find("VisualRoot");
+        visualRoot = found != null ? found : CreateChild(transform, "VisualRoot");
+
+        // Auto-add WobblyBox to VisualRoot if it isn't there already.
+        if (visualRoot.GetComponent<WobblyBox>() == null)
+            visualRoot.gameObject.AddComponent<WobblyBox>();
+
+        // Each body part has its own anchor under VisualRoot.
+        // AnimalData stores per-part offsets so pixel-perfect 16-bit placement
+        // can be configured directly on the ScriptableObject.
+        headAnchor = FindOrCreateAnchor("HeadAnchor");
+        bodyAnchor = FindOrCreateAnchor("BodyAnchor");
+        legsAnchor = FindOrCreateAnchor("LegsAnchor");
+
+        // Sorting order: legs behind body, body behind head.
+        headRenderer = GetOrAddRenderer(headAnchor, 2);
+        bodyRenderer = GetOrAddRenderer(bodyAnchor, 1);
+        legsRenderer = GetOrAddRenderer(legsAnchor, 0);
     }
 
-    Transform CreateChildAnchor(string name)
+    private Transform FindOrCreateAnchor(string anchorName)
     {
-        GameObject go = new GameObject(name);
-        go.transform.SetParent(transform, false);
+        Transform t = visualRoot.Find(anchorName);
+        return t != null ? t : CreateChild(visualRoot, anchorName);
+    }
+
+    private static Transform CreateChild(Transform parent, string childName)
+    {
+        GameObject go = new GameObject(childName);
+        go.transform.SetParent(parent, false);
         go.transform.localPosition = Vector3.zero;
         return go.transform;
     }
 
-    SpriteRenderer GetOrAddRenderer(Transform parent, int order)
+    private static SpriteRenderer GetOrAddRenderer(Transform parent, int sortOrder)
     {
         SpriteRenderer sr = parent.GetComponent<SpriteRenderer>();
         if (sr == null) sr = parent.gameObject.AddComponent<SpriteRenderer>();
-        sr.sortingOrder = order;
+        sr.sortingOrder = sortOrder;
         return sr;
     }
 
+    // ── Sprite Application ────────────────────────────────────────────────────
+
     /// <summary>
-    /// Apply sprites and offsets from the given AnimalData parts.
-    /// Called by MutantFighter when parts are generated/changed.
+    /// Called by MutantFighter.OnPartsChanged whenever parts are set.
+    /// Applies sprites and the pixel-art offsets defined in each AnimalData.
     /// </summary>
     public void ApplyParts(AnimalData head, AnimalData body, AnimalData legs)
     {
-        // Set sprites with safe fallbacks
-        headRenderer.sprite = (head != null && head.headSprite != null) ? head.headSprite : null;
-        bodyRenderer.sprite = (body != null && body.bodySprite != null) ? body.bodySprite : null;
-        legsRenderer.sprite = (legs != null && legs.legsSprite != null) ? legs.legsSprite : null;
+        headRenderer.sprite = (head != null) ? head.headSprite : null;
+        bodyRenderer.sprite = (body != null) ? body.bodySprite : null;
+        legsRenderer.sprite = (legs != null) ? legs.legsSprite : null;
 
-        // Apply offsets if provided
-        if (head != null) headAnchor.localPosition = head.headOffset;
-        if (body != null) bodyAnchor.localPosition = body.bodyOffset;
-        if (legs != null) legsAnchor.localPosition = legs.legsOffset;
+        if (head  != null) headAnchor.localPosition  = head.headOffset;
+        if (body  != null) bodyAnchor.localPosition  = body.bodyOffset;
+        if (legs  != null) legsAnchor.localPosition  = legs.legsOffset;
     }
 }
