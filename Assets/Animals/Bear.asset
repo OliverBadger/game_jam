@@ -17,10 +17,11 @@ MonoBehaviour:
   headAttack: 22
   bodyHealth: 45
   legsSpeed: 12
-  archetypeDescription: 'The Bruiser: A rare, terrifying mix of high damage and massive bulk.'
-  headSprite: {fileID: 0}
-  bodySprite: {fileID: 0}
-  legsSprite: {fileID: 0}
+  archetypeDescription: 'The Bruiser: A rare, terrifying mix of high damage and massive
+    bulk.'
+  headSprite: {fileID: 26217513, guid: 7729142de37487a48906ef702e824870, type: 3}
+  bodySprite: {fileID: 1004573597, guid: 7729142de37487a48906ef702e824870, type: 3}
+  legsSprite: {fileID: 183522601, guid: 7729142de37487a48906ef702e824870, type: 3}
   headOffset: {x: 0, y: 0, z: 0}
   bodyOffset: {x: 0, y: 0, z: 0}
   legsOffset: {x: 0, y: 0, z: 0}

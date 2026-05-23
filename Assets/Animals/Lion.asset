@@ -17,10 +17,11 @@ MonoBehaviour:
   headAttack: 35
   bodyHealth: 30
   legsSpeed: 28
-  archetypeDescription: 'The Jackpot: Exceptional across the board. The ultimate king of the tournament.'
-  headSprite: {fileID: 0}
-  bodySprite: {fileID: 0}
-  legsSprite: {fileID: 0}
+  archetypeDescription: 'The Jackpot: Exceptional across the board. The ultimate
+    king of the tournament.'
+  headSprite: {fileID: 1750235336, guid: 7729142de37487a48906ef702e824870, type: 3}
+  bodySprite: {fileID: -1057717096, guid: 7729142de37487a48906ef702e824870, type: 3}
+  legsSprite: {fileID: -1529600755, guid: 7729142de37487a48906ef702e824870, type: 3}
   headOffset: {x: 0, y: 0, z: 0}
   bodyOffset: {x: 0, y: 0, z: 0}
   legsOffset: {x: 0, y: 0, z: 0}

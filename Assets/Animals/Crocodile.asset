@@ -17,10 +17,11 @@ MonoBehaviour:
   headAttack: 28
   bodyHealth: 25
   legsSpeed: 6
-  archetypeDescription: 'The Ambush Predator: Devastating attack and good health, but very slow.'
-  headSprite: {fileID: 0}
-  bodySprite: {fileID: 0}
-  legsSprite: {fileID: 0}
+  archetypeDescription: 'The Ambush Predator: Devastating attack and good health,
+    but very slow.'
+  headSprite: {fileID: 1649874130, guid: 7729142de37487a48906ef702e824870, type: 3}
+  bodySprite: {fileID: -393937773, guid: 7729142de37487a48906ef702e824870, type: 3}
+  legsSprite: {fileID: -129834797, guid: 7729142de37487a48906ef702e824870, type: 3}
   headOffset: {x: 0, y: 0, z: 0}
   bodyOffset: {x: 0, y: 0, z: 0}
   legsOffset: {x: 0, y: 0, z: 0}

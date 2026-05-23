@@ -18,9 +18,9 @@ MonoBehaviour:
   bodyHealth: 15
   legsSpeed: 30
   archetypeDescription: 'The Sprinter: Guaranteed to attack first, but very fragile.'
-  headSprite: {fileID: 0}
-  bodySprite: {fileID: 0}
-  legsSprite: {fileID: 0}
+  headSprite: {fileID: 3139590038334684883, guid: 7729142de37487a48906ef702e824870, type: 3}
+  bodySprite: {fileID: 1600626857, guid: 7729142de37487a48906ef702e824870, type: 3}
+  legsSprite: {fileID: 1890057194, guid: 7729142de37487a48906ef702e824870, type: 3}
   headOffset: {x: 0, y: 0, z: 0}
   bodyOffset: {x: 0, y: 0, z: 0}
   legsOffset: {x: 0, y: 0, z: 0}

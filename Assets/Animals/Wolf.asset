@@ -17,10 +17,11 @@ MonoBehaviour:
   headAttack: 15
   bodyHealth: 20
   legsSpeed: 18
-  archetypeDescription: 'The All-Rounder: Perfectly balanced mid-tier stats. No glaring weaknesses.'
-  headSprite: {fileID: 0}
-  bodySprite: {fileID: 0}
-  legsSprite: {fileID: 0}
+  archetypeDescription: 'The All-Rounder: Perfectly balanced mid-tier stats. No glaring
+    weaknesses.'
+  headSprite: {fileID: 2125084696, guid: 7729142de37487a48906ef702e824870, type: 3}
+  bodySprite: {fileID: -525364240, guid: 7729142de37487a48906ef702e824870, type: 3}
+  legsSprite: {fileID: 1137289420, guid: 7729142de37487a48906ef702e824870, type: 3}
   headOffset: {x: 0, y: 0, z: 0}
   bodyOffset: {x: 0, y: 0, z: 0}
   legsOffset: {x: 0, y: 0, z: 0}

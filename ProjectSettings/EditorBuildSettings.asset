@@ -5,8 +5,29 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/Scenes/Bootstrap.unity
+    guid: 5294f4296815084478ced8b7efa3b717
+  - enabled: 1
+    path: Assets/Scenes/TournamentHub.unity
+    guid: 1b4f4edbd1d26ae43a09bc56d33267c2
+  - enabled: 1
+    path: Assets/Scenes/BudgetSelector.unity
+    guid: 34c3925f6d9b82540a39d1b0f6994c46
+  - enabled: 1
+    path: Assets/Scenes/SlotMachine.unity
+    guid: c6274925d1239cb4f8385ebd7aa165e9
+  - enabled: 1
+    path: Assets/Scenes/Shop.unity
+    guid: 042fa8312a3bbf94ebfd6e5fd99bb243
+  - enabled: 1
+    path: Assets/Scenes/Fight.unity
+    guid: 8f770191e3db4454789655623f8ab18a
+  - enabled: 1
+    path: Assets/Scenes/Champion.unity
+    guid: 07ee6d46c7123684cb8ba71ccfbd203d
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
